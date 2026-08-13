@@ -77,6 +77,10 @@ metrics:
 ## 规则清单（逐项可验）
 
 ### 单元测试（`routa-core`）
+- [x] ACP provider 启动参数契约
+  - status: `VERIFIED`
+  - required: 内置 provider 的命令与参数在 TypeScript/Rust 双后端保持一致；Kimi 使用 `kimi acp` 子命令
+  - evidence: `src/core/acp/__tests__/acp-presets.test.ts`, `crates/routa-core/src/acp/mod.rs`
 - [ ] store: workspace
   - status: `TODO`
   - required: CRUD、查询过滤、归档状态一致性
