@@ -19,11 +19,13 @@ metrics:
     pattern: "Tests\\s+(\\d+)\\s+passed"
     hard_gate: true
     tier: normal
+    timeout_seconds: 900
 
   - name: ts_test_coverage
     command: npm run test:cov:ts 2>&1
     tier: normal
     description: "Vitest V8 line coverage must stay at or above 80%."
+    timeout_seconds: 900
 
   - name: rust_test_pass
     command: cargo test --workspace --exclude routa-desktop 2>&1
@@ -31,6 +33,7 @@ metrics:
     serial: true
     hard_gate: true
     tier: normal
+    timeout_seconds: 900
 
   - name: graph_test_radius_probe
     command: entrix graph test-radius --json
