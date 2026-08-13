@@ -1375,7 +1375,7 @@ paths:
                 modelTier:
                   $ref: "#/components/schemas/ModelTier"
       responses:
-        "200":
+        "201":
           description: Created agent
           content:
             application/json:
@@ -2067,7 +2067,16 @@ paths:
                   $ref: "#/components/schemas/NoteMetadata"
       responses:
         "200":
-          description: Created/updated note
+          description: Updated note
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  note:
+                    $ref: "#/components/schemas/Note"
+        "201":
+          description: Created note
           content:
             application/json:
               schema:
@@ -2210,7 +2219,7 @@ paths:
                   additionalProperties:
                     type: string
       responses:
-        "200":
+        "201":
           description: Created workspace
           content:
             application/json:
