@@ -45,14 +45,6 @@ pub fn router() -> Router<AppState> {
             "/workspaces/{workspace_id}/codebases/changes",
             get(list_codebase_changes),
         )
-        .route(
-            "/workspaces/{workspace_id}/codebases/{codebase_id}/reposlide",
-            get(get_reposlide),
-        )
-        .route(
-            "/workspaces/{workspace_id}/codebases/{codebase_id}/wiki",
-            get(get_wiki),
-        )
         .nest(
             "/workspaces/{workspace_id}/codebases/{codebase_id}/git",
             crate::api::git::router(),
