@@ -69,9 +69,6 @@ export interface KanbanCardDetailProps {
   isFullscreen?: boolean;
   onToggleFullscreen?: (next: boolean) => void;
   onClose?: () => void;
-  canShowSessionPane?: boolean;
-  isSessionPaneVisible?: boolean;
-  onShowSessionPane?: () => void;
 }
 
 const ROLE_OPTIONS = ["CRAFTER", "ROUTA", "GATE", "DEVELOPER"];
@@ -256,13 +253,9 @@ export function KanbanCardDetail({
   isFullscreen = false,
   onToggleFullscreen,
   onClose,
-  canShowSessionPane = false,
-  isSessionPaneVisible = false,
-  onShowSessionPane,
 }: KanbanCardDetailProps) {
   const { t } = useTranslation();
   const progressNotes = useMemo(() => resolveTaskCommentEntries(task), [task]);
-  const sessionCopy = getKanbanSessionCopy(specialistLanguage);
   const [editTitle, setEditTitle] = useState(task.title);
   const [editObjective, setEditObjective] = useState(task.objective ?? "");
   const [editTestCases, setEditTestCases] = useState((task.testCases ?? []).join("\n"));
@@ -357,15 +350,6 @@ export function KanbanCardDetail({
                 >
                   <X className="h-3 w-3" />
                   <span>{t.kanbanDetail.closeCardDetail}</span>
-                </button>
-              ) : null}
-              {canShowSessionPane && !isSessionPaneVisible && onShowSessionPane ? (
-                <button
-                  type="button"
-                  onClick={onShowSessionPane}
-                  className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600 transition-colors hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 dark:border-slate-700 dark:bg-[#0d1018] dark:text-slate-300 dark:hover:border-amber-700 dark:hover:bg-amber-900/20 dark:hover:text-amber-200"
-                >
-                  {sessionCopy.showSessionPane}
                 </button>
               ) : null}
               {onToggleFullscreen ? (
