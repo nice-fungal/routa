@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, type ReactNode } from "react";
-import { Maximize2, Minimize2, X } from "lucide-react";
+import { Maximize2, Minimize2, MonitorX, X } from "lucide-react";
 import type { AcpProviderInfo } from "@/client/acp-client";
 import type { CodebaseData } from "@/client/hooks/use-workspaces";
 import { Select } from "@/client/components/select";
@@ -69,9 +69,6 @@ export interface KanbanCardDetailProps {
   isFullscreen?: boolean;
   onToggleFullscreen?: (next: boolean) => void;
   onClose?: () => void;
-  canShowSessionPane?: boolean;
-  isSessionPaneVisible?: boolean;
-  onShowSessionPane?: () => void;
 }
 
 const ROLE_OPTIONS = ["CRAFTER", "ROUTA", "GATE", "DEVELOPER"];
@@ -260,13 +257,9 @@ export function KanbanCardDetail({
   isFullscreen = false,
   onToggleFullscreen,
   onClose,
-  canShowSessionPane = false,
-  isSessionPaneVisible = false,
-  onShowSessionPane,
 }: KanbanCardDetailProps) {
   const { t } = useTranslation();
   const progressNotes = useMemo(() => resolveTaskCommentEntries(task), [task]);
-  const sessionCopy = getKanbanSessionCopy(specialistLanguage);
   const [editTitle, setEditTitle] = useState(task.title);
   const [editObjective, setEditObjective] = useState(task.objective ?? "");
   const [editTestCases, setEditTestCases] = useState((task.testCases ?? []).join("\n"));
@@ -354,21 +347,11 @@ export function KanbanCardDetail({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600 transition-colors hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 dark:border-slate-700 dark:bg-[#0d1018] dark:text-slate-300 dark:hover:border-amber-700 dark:hover:bg-amber-900/20 dark:hover:text-amber-200"
+                  className="inline-flex h-6 w-6 items-center justify-center rounded text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300"
                   aria-label={t.kanbanDetail.closeCardDetail}
                   title={t.kanbanDetail.closeCardDetail}
                 >
-                  <X className="h-3 w-3" />
-                  <span>{t.kanbanDetail.closeCardDetail}</span>
-                </button>
-              ) : null}
-              {canShowSessionPane && !isSessionPaneVisible && onShowSessionPane ? (
-                <button
-                  type="button"
-                  onClick={onShowSessionPane}
-                  className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600 transition-colors hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 dark:border-slate-700 dark:bg-[#0d1018] dark:text-slate-300 dark:hover:border-amber-700 dark:hover:bg-amber-900/20 dark:hover:text-amber-200"
-                >
-                  {sessionCopy.showSessionPane}
+                  <MonitorX className="h-3.5 w-3.5" />
                 </button>
               ) : null}
               {onToggleFullscreen ? (
