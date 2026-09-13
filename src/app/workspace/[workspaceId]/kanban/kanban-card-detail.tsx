@@ -75,9 +75,13 @@ export interface KanbanCardDetailProps {
 }
 
 const ROLE_OPTIONS = ["CRAFTER", "ROUTA", "GATE", "DEVELOPER"];
-type KanbanDetailTabId = "overview" | "readiness" | "execution" | "jitContext" | "changes" | "evidence" | "runs";
+type KanbanDetailTabId = "overview" | "execution" | "jitContext" | "changes" | "evidence" | "runs";
 
 const persistedKanbanDetailTabs = new Map<string, KanbanDetailTabId>();
+
+function normalizeKanbanDetailTab(tab: KanbanDetailTabId | "readiness" | undefined): KanbanDetailTabId {
+  return !tab || tab === "readiness" ? "overview" : tab;
+}
 
 function getProviderName(providerId: string | undefined, availableProviders: AcpProviderInfo[]): string {
   if (!providerId) return "Workspace default";
@@ -322,7 +326,7 @@ export function KanbanCardDetail({
   } | null>(null);
   const activeTab = tabSelection?.key === tabStateKey
     ? tabSelection.tab
-    : persistedKanbanDetailTabs.get(tabStateKey) ?? "overview";
+    : normalizeKanbanDetailTab(persistedKanbanDetailTabs.get(tabStateKey));
   const tabListId = `kanban-detail-tabs-${task.id}`;
   const storyReadinessValue = task.storyReadiness
     ? (task.storyReadiness.ready ? t.kanbanDetail.readyForDev : t.kanbanDetail.blockedForDev)
@@ -330,7 +334,6 @@ export function KanbanCardDetail({
   const evidenceValue = getEvidenceStatus(task, t);
   const detailTabs = [
     { id: "overview" as const, label: t.kanbanDetail.overview },
-    { id: "readiness" as const, label: t.kanbanDetail.storyReadiness },
     { id: "execution" as const, label: t.kanbanDetail.execution },
     { id: "jitContext" as const, label: t.kanbanDetail.jitContext },
     { id: "changes" as const, label: t.kanbanDetail.changes },
@@ -564,6 +567,14 @@ export function KanbanCardDetail({
               </section>
 
               <DetailSection
+                title={t.kanbanDetail.storyReadiness}
+                description={compactMode ? undefined : t.kanbanDetail.storyReadinessHint}
+                compact={compactMode}
+              >
+                <StoryReadinessPanel task={task} compact={compactMode} />
+              </DetailSection>
+
+              <DetailSection
                 title={t.kanbanDetail.reviewFeedback}
                 description={compactMode ? undefined : t.kanbanDetail.evidenceBundleHint}
                 compact={compactMode}
@@ -696,16 +707,6 @@ export function KanbanCardDetail({
                 </div>
               </DetailSection>
             </>
-          )}
-
-          {activeTab === "readiness" && (
-            <DetailSection
-              title={t.kanbanDetail.storyReadiness}
-              description={compactMode ? undefined : t.kanbanDetail.storyReadinessHint}
-              compact={compactMode}
-            >
-              <StoryReadinessPanel task={task} compact={compactMode} />
-            </DetailSection>
           )}
 
           {activeTab === "changes" && (

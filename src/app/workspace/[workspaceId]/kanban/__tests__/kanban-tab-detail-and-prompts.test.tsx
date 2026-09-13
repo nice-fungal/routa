@@ -1453,8 +1453,8 @@ describe("KanbanCardDetail repository health", () => {
       />,
     );
 
-    expect(screen.getByRole("tab", { name: "Story Readiness" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("tab", { name: "Story Readiness" }));
+    expect(screen.queryByRole("tab", { name: "Story Readiness" })).toBeNull();
+    expect(screen.getByRole("tab", { name: "Overview" })).toBeTruthy();
     expect(screen.getAllByText("Blocked for Dev").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("tab", { name: "Evidence Bundle" }));
     expect(screen.getByRole("tab", { name: "Evidence Bundle" })).toBeTruthy();
