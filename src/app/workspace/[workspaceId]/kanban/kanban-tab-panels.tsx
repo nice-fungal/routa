@@ -523,7 +523,6 @@ function A2ASessionPane({
   refreshSignal,
   currentSessionId,
   onSelectSession,
-  onCloseSession,
 }: {
   task: TaskInfo;
   laneSession?: NonNullable<TaskInfo["laneSessions"]>[number];
@@ -533,7 +532,6 @@ function A2ASessionPane({
   refreshSignal?: number;
   currentSessionId?: string;
   onSelectSession: (sessionId: string) => void;
-  onCloseSession: () => void;
 }) {
   const metadata = [
     { label: "Transport", value: (laneSession?.transport ?? "a2a").toUpperCase() },
@@ -672,12 +670,10 @@ export function KanbanTaskDetailOverlay({
     [activeTask, board?.columns],
   );
   const [sessionRecoveryInputPrefill, setSessionRecoveryInputPrefill] = useState<string | null>(null);
-  const isSessionPaneVisible = activeTaskId ? hiddenSessionPaneTaskId !== activeTaskId : true;
-  const hasSessionPane = canShowSessionPane && isSessionPaneVisible;
+  const hasSessionPane = canShowSessionPane;
   const selectTaskSession = (task: TaskInfo, sessionId: string) => {
     setActiveSessionId(sessionId);
     setSessionRecoveryInputPrefill(null);
-    setHiddenSessionPaneTaskId(null);
     if (acp && canSelectTaskSessionInAcp(task, sessionId, sessionMap)) {
       acp.selectSession(sessionId);
     }
@@ -732,7 +728,6 @@ export function KanbanTaskDetailOverlay({
     setActiveSessionId(replacement.sessionId);
     acp.selectSession(replacement.sessionId);
     setSessionRecoveryInputPrefill(buildKanbanSessionRestorePrompt(activeTask, targetSessionInfo, transcript));
-    setHiddenSessionPaneTaskId(null);
     onRefresh();
   };
 
@@ -793,9 +788,6 @@ export function KanbanTaskDetailOverlay({
                   isFullscreen={isTaskDetailFullscreen}
                   onToggleFullscreen={onToggleTaskDetailFullscreen}
                   onClose={closeTaskDetail}
-                  canShowSessionPane={canShowSessionPane}
-                  isSessionPaneVisible={hasSessionPane}
-                  onShowSessionPane={() => setHiddenSessionPaneTaskId(null)}
                 />
               );
             })()}
@@ -837,7 +829,6 @@ export function KanbanTaskDetailOverlay({
                     specialists={specialists}
                     specialistLanguage={specialistLanguage}
                     autoProviderId={resolveKanbanBoardAutoProviderId(board, boardAutoProviderId)}
-                    onCloseSession={() => setHiddenSessionPaneTaskId(activeTask?.id ?? null)}
                   />
                 );
               }
@@ -867,8 +858,6 @@ export function KanbanTaskDetailOverlay({
                       refreshSignal={refreshSignal}
                       currentSessionId={activeSessionId ?? undefined}
                       onSelectSession={(sessionId) => selectTaskSession(activeTask, sessionId)}
-                      onCloseSession={() => setHiddenSessionPaneTaskId(activeTask.id)}
-                    />
                     />
                   ) : acp && (
                     <div className="min-h-0 flex-1">
