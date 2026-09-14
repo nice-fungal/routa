@@ -1,24 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
-import {
-  Braces,
-  Check,
-  CircleCheckBig,
-  ClipboardList,
-  Copy,
-  GitPullRequest,
-  Inbox,
-  Layers3,
-  ShieldCheck,
-} from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import { useTranslation } from "@/i18n";
 import type { AcpProviderInfo } from "@/client/acp-client";
 import { resolveEffectiveTaskAutomation } from "@/core/kanban/effective-task-automation";
 import type { KanbanColumnInfo } from "../types";
 import type { SessionInfo, TaskInfo, TaskRunInfo } from "../types";
 import {
-  buildSessionDisplayLabel,
   createKanbanSpecialistResolver,
   formatSessionTimestamp,
   getLaneSessionStepLabel,
@@ -77,66 +66,6 @@ function getTaskRunStatusClasses(status: TaskRunInfo["status"] | undefined): str
     default:
       return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
   }
-}
-
-function getLaneBadgeClasses(laneLabel: string | undefined): string {
-  const normalized = laneLabel?.trim().toLowerCase() ?? "";
-
-  if (normalized.includes("backlog") || normalized.includes("梳理")) {
-    return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200";
-  }
-  if (normalized.includes("todo") || normalized.includes("编排")) {
-    return "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-200";
-  }
-  if (
-    normalized.includes("dev")
-    || normalized.includes("develop")
-    || normalized.includes("开发")
-    || normalized.includes("execute")
-  ) {
-    return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-200";
-  }
-  if (normalized.includes("review") || normalized.includes("评审") || normalized.includes("gate")) {
-    return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200";
-  }
-  if (normalized.includes("pr") || normalized.includes("publish")) {
-    return "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-200";
-  }
-  if (normalized.includes("done") || normalized.includes("complete") || normalized.includes("completed")) {
-    return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200";
-  }
-
-  return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300";
-}
-
-function getRunTabClasses(status: TaskRunInfo["status"] | undefined, active: boolean): string {
-  const stateClasses = (() => {
-    switch (status) {
-      case "completed":
-        return active
-          ? "border-emerald-300 bg-emerald-50 text-slate-900 dark:border-emerald-700/70 dark:bg-emerald-900/20 dark:text-slate-100"
-          : "border-emerald-200/80 bg-white text-slate-600 hover:border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800/70 dark:bg-transparent dark:text-slate-300 dark:hover:border-emerald-700 dark:hover:bg-emerald-900/10";
-      case "failed":
-      case "timed_out":
-        return active
-          ? "border-rose-300 bg-rose-50 text-slate-900 dark:border-rose-700/70 dark:bg-rose-900/20 dark:text-slate-100"
-          : "border-rose-200/80 bg-white text-slate-600 hover:border-rose-300 hover:bg-rose-50 dark:border-rose-800/70 dark:bg-transparent dark:text-slate-300 dark:hover:border-rose-700 dark:hover:bg-rose-900/10";
-      case "running":
-        return active
-          ? "border-sky-300 bg-sky-50 text-slate-900 dark:border-sky-700/70 dark:bg-sky-900/20 dark:text-slate-100"
-          : "border-sky-200/80 bg-white text-slate-600 hover:border-sky-300 hover:bg-sky-50 dark:border-sky-800/70 dark:bg-transparent dark:text-slate-300 dark:hover:border-sky-700 dark:hover:bg-sky-900/10";
-      case "transitioned":
-        return active
-          ? "border-amber-300 bg-amber-50 text-slate-900 dark:border-amber-700/70 dark:bg-amber-900/20 dark:text-slate-100"
-          : "border-amber-200/80 bg-white text-slate-600 hover:border-amber-300 hover:bg-amber-50 dark:border-amber-800/70 dark:bg-transparent dark:text-slate-300 dark:hover:border-amber-700 dark:hover:bg-amber-900/10";
-      default:
-        return active
-          ? "border-slate-300 bg-slate-100 text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-          : "border-slate-200/80 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-transparent dark:text-slate-400 dark:hover:border-slate-600 dark:hover:bg-slate-900/40";
-    }
-  })();
-
-  return `inline-flex min-w-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] font-medium transition-colors ${stateClasses}`;
 }
 
 function formatAgentCardTarget(agentCardUrl?: string): string | undefined {
@@ -198,37 +127,6 @@ function formatLaneSessionHeading(
   }
 
   return session?.name ?? session?.provider ?? "Automation Run";
-}
-
-function renderLaneIcon(laneLabel: string | undefined) {
-  const normalized = laneLabel?.trim().toLowerCase() ?? "";
-  const iconClassName = "h-3.5 w-3.5";
-
-  if (normalized.includes("backlog") || normalized.includes("梳理")) {
-    return <Inbox className={iconClassName} aria-hidden="true" />;
-  }
-  if (normalized.includes("todo") || normalized.includes("编排")) {
-    return <ClipboardList className={iconClassName} aria-hidden="true" />;
-  }
-  if (
-    normalized.includes("dev")
-    || normalized.includes("develop")
-    || normalized.includes("开发")
-    || normalized.includes("execute")
-  ) {
-    return <Braces className={iconClassName} aria-hidden="true" />;
-  }
-  if (normalized.includes("review") || normalized.includes("评审") || normalized.includes("gate")) {
-    return <ShieldCheck className={iconClassName} aria-hidden="true" />;
-  }
-  if (normalized.includes("pr") || normalized.includes("publish")) {
-    return <GitPullRequest className={iconClassName} aria-hidden="true" />;
-  }
-  if (normalized.includes("done") || normalized.includes("complete") || normalized.includes("completed")) {
-    return <CircleCheckBig className={iconClassName} aria-hidden="true" />;
-  }
-
-  return <Layers3 className={iconClassName} aria-hidden="true" />;
 }
 
 function ActivitySection({
@@ -410,18 +308,15 @@ export function KanbanCardActivityPanel({
 
 export function KanbanCardActivityBar({
   task,
-  sessions = [],
   specialistLanguage = "en",
   currentSessionId,
   onSelectSession,
-  onCloseSession,
 }: {
   task: TaskInfo;
   sessions?: SessionInfo[];
   specialistLanguage?: KanbanSpecialistLanguage;
   currentSessionId?: string;
   onSelectSession?: (sessionId: string) => void;
-  onCloseSession?: () => void;
 }) {
   const { t } = useTranslation();
   const copy = getKanbanSessionCopy(specialistLanguage);
@@ -430,42 +325,30 @@ export function KanbanCardActivityBar({
     task.id,
     `${task.updatedAt ?? ""}:${task.triggerSessionId ?? ""}:${task.laneSessions?.length ?? 0}`,
   );
-  const orderedSessionIds = getStableOrderedSessionIds(task, runs);
   const laneSessions = task.laneSessions ?? [];
   const laneSessionMap = new Map(laneSessions.map((entry) => [entry.sessionId, entry]));
-  const sessionMap = new Map(sessions.map((session) => [session.sessionId, session]));
   const runMap = new Map((runs ?? []).map((run) => [run.sessionId ?? run.id, run]));
-  const selectedRunId = currentSessionId && orderedSessionIds.includes(currentSessionId)
+  const selectedSessionId = currentSessionId && laneSessionMap.has(currentSessionId)
     ? currentSessionId
-    : orderedSessionIds[orderedSessionIds.length - 1];
-  const selectedLaneSession = selectedRunId ? laneSessionMap.get(selectedRunId) : undefined;
-  const selectedRun = selectedRunId ? runMap.get(selectedRunId) : undefined;
+    : laneSessions[laneSessions.length - 1]?.sessionId;
+  const selectedLaneSession = selectedSessionId ? laneSessionMap.get(selectedSessionId) : undefined;
+  const selectedRun = selectedSessionId ? runMap.get(selectedSessionId) : undefined;
   const selectedStepLabel = getLaneSessionStepLabel(selectedLaneSession);
+  const tabPanelId = `kanban-session-tabpanel-${task.id}`;
 
   useEffect(() => {
-    if (!selectedRunId) return;
-    sessionTabRefs.current[selectedRunId]?.scrollIntoView({
+    if (!selectedSessionId) return;
+    sessionTabRefs.current[selectedSessionId]?.scrollIntoView({
       behavior: "smooth",
       block: "nearest",
       inline: "nearest",
     });
-  }, [selectedRunId]);
+  }, [selectedSessionId]);
 
-  if (orderedSessionIds.length === 0) {
+  if (laneSessions.length === 0) {
     return (
       <div className="flex items-center justify-between gap-3 border-b border-dashed border-slate-300 px-3 py-2 text-[11px] text-slate-500 dark:border-slate-700 dark:text-slate-400">
         <span>{copy.noRunsInline}</span>
-        {onCloseSession && (
-          <button
-            type="button"
-            onClick={onCloseSession}
-            className="inline-flex h-6 w-6 shrink-0 items-center justify-center border border-slate-200 text-sm font-semibold text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-slate-200"
-            aria-label={copy.closeSessionPane}
-            title={copy.closeSessionPane}
-          >
-            ×
-          </button>
-        )}
       </div>
     );
   }
@@ -477,60 +360,47 @@ export function KanbanCardActivityBar({
           Run ledger unavailable, using cached task history.
         </div>
       )}
-      <div className="flex items-start gap-2 border-b border-slate-200/70 pb-2 dark:border-[#232736]">
-        <div className="flex min-w-0 flex-1 flex-wrap items-end gap-1.5 border-slate-200/70 pr-1 pb-1">
-          {orderedSessionIds.map((sessionId, index) => {
-            const active = sessionId === selectedRunId;
-            const laneSession = laneSessionMap.get(sessionId);
-            const run = runMap.get(sessionId);
-            const laneLabel = laneSession?.columnName ?? laneSession?.columnId ?? t.kanban.runLabel;
-            const runLabel = buildSessionDisplayLabel(sessionId, index, sessionMap);
-            const fullTabLabel = laneSession?.stepName?.trim() || runLabel;
+      <div
+        role="tablist"
+        aria-label={copy.runs}
+        className="flex min-w-0 flex-wrap items-end gap-1 border-b border-desktop-border"
+      >
+        {laneSessions.map((laneSession, index) => {
+          const sessionId = laneSession.sessionId;
+          const active = sessionId === selectedSessionId;
+          const laneLabel = laneSession.columnName?.trim() || laneSession.columnId?.trim() || t.kanban.runLabel;
+          const stepLabel = laneSession.stepName?.trim() || t.kanban.acpSession;
+          const tabLabel = `${laneLabel} · ${stepLabel}`;
+          const fullTabLabel = `${tabLabel} · ${sessionId}`;
 
-            return (
-              <button
-                key={sessionId}
-                type="button"
-                ref={(node) => {
-                  sessionTabRefs.current[sessionId] = node;
-                }}
-                onClick={() => onSelectSession?.(sessionId)}
-                className={getRunTabClasses(run?.status ?? laneSession?.status, active)}
-                aria-pressed={active}
-                title={`${fullTabLabel} · ${laneLabel} · Run ${index + 1}`}
-              >
-                <span
-                  className={`inline-flex h-5 w-5 items-center justify-center rounded-full ${getLaneBadgeClasses(laneLabel)}`}
-                  aria-label={laneLabel}
-                  title={laneLabel}
-                >
-                  {renderLaneIcon(laneLabel)}
-                </span>
-                <span className={`px-0.5 text-[10px] font-semibold tabular-nums ${
-                  active
-                    ? "text-slate-700 dark:text-slate-200"
-                    : "text-slate-500 dark:text-slate-400"
-                }`}>
-                  {index + 1}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        {onCloseSession && (
-          <button
-            type="button"
-            onClick={onCloseSession}
-            className="inline-flex h-6 w-6 shrink-0 items-center justify-center border border-slate-200 text-sm font-semibold text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-slate-200"
-            aria-label={copy.closeSessionPane}
-            title={copy.closeSessionPane}
-          >
-            ×
-          </button>
-        )}
+          return (
+            <button
+              key={sessionId}
+              type="button"
+              id={`kanban-session-tab-${task.id}-${index}`}
+              role="tab"
+              ref={(node) => {
+                sessionTabRefs.current[sessionId] = node;
+              }}
+              onClick={() => onSelectSession?.(sessionId)}
+              aria-selected={active}
+              aria-controls={tabPanelId}
+              tabIndex={active ? 0 : -1}
+              title={fullTabLabel}
+              aria-label={fullTabLabel}
+              className={`shrink-0 border-b-2 px-3 py-1.5 text-[11px] font-medium transition-colors ${
+                active
+                  ? "border-b-desktop-accent bg-desktop-bg-active text-desktop-accent"
+                  : "border-b-transparent text-desktop-text-secondary hover:bg-desktop-bg-active/70 hover:text-desktop-text-primary"
+              }`}
+            >
+              {tabLabel}
+            </button>
+          );
+        })}
       </div>
       {(selectedLaneSession?.columnName || selectedStepLabel || selectedLaneSession?.status) && (
-        <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-200/80 pb-1 text-[10px] dark:border-[#232736]">
+        <div id={tabPanelId} className="flex flex-wrap items-center gap-1.5 border-b border-slate-200/80 pb-1 text-[10px] dark:border-[#232736]">
           {selectedLaneSession?.columnName && (
             <span className="rounded-full bg-sky-100 px-2 py-0.5 font-semibold uppercase tracking-wide text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
               {selectedLaneSession.columnName}
@@ -727,7 +597,6 @@ export function KanbanEmptySessionPane({
   specialists,
   specialistLanguage = "en",
   autoProviderId,
-  onCloseSession,
 }: {
   task: TaskInfo;
   boardColumns: KanbanColumnInfo[];
@@ -735,7 +604,6 @@ export function KanbanEmptySessionPane({
   specialists: KanbanSpecialistOption[];
   specialistLanguage?: KanbanSpecialistLanguage;
   autoProviderId?: string;
-  onCloseSession?: () => void;
 }) {
   const { t } = useTranslation();
   const copy = getKanbanSessionCopy(specialistLanguage);
@@ -754,7 +622,6 @@ export function KanbanEmptySessionPane({
         <KanbanCardActivityBar
           task={task}
           specialistLanguage={specialistLanguage}
-          onCloseSession={onCloseSession}
         />
       </div>
       <div className="flex min-h-0 flex-1 items-center justify-center p-4">

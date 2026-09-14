@@ -1,7 +1,7 @@
 "use client";
 
 import type { AutomationSpecialistResolver } from "@/core/kanban/effective-task-automation";
-import type { SessionInfo, TaskInfo, TaskRunInfo } from "../types";
+import type { TaskInfo, TaskRunInfo } from "../types";
 import { findSpecialistById, getSpecialistDisplayName } from "./kanban-specialist-language";
 
 export interface KanbanSpecialistOption {
@@ -74,19 +74,6 @@ export function getStableOrderedSessionIds(
   });
 
   return [...orderedTaskIds, ...extraRunIds];
-}
-
-export function buildSessionDisplayLabel(
-  sessionId: string,
-  index: number,
-  sessionMap: Map<string, SessionInfo>,
-): string {
-  const session = sessionMap.get(sessionId);
-  const name = session?.name?.trim();
-  if (name) return name;
-  const provider = session?.provider?.trim();
-  if (provider) return provider;
-  return `Run ${index + 1}`;
 }
 
 export function getLaneSessionStepLabel(

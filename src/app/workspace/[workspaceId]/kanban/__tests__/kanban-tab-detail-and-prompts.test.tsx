@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 import { KanbanTab } from "../kanban-tab";
 import { KanbanCardDetail } from "../kanban-card-detail";
@@ -1453,8 +1453,8 @@ describe("KanbanCardDetail repository health", () => {
       />,
     );
 
-    expect(screen.getByRole("tab", { name: "Story Readiness" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("tab", { name: "Story Readiness" }));
+    expect(screen.queryByRole("tab", { name: "Story Readiness" })).toBeNull();
+    expect(screen.getByRole("tab", { name: "Overview" })).toBeTruthy();
     expect(screen.getAllByText("Blocked for Dev").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("tab", { name: "Evidence Bundle" }));
     expect(screen.getByRole("tab", { name: "Evidence Bundle" })).toBeTruthy();
@@ -1591,26 +1591,30 @@ describe("KanbanCardDetail repository health", () => {
 });
 
 describe("KanbanCardActivityBar", () => {
-  it("renders run tabs with lane icons and numeric labels while preserving the full title in the tooltip", async () => {
+  function mockRunLedger(runs: Array<Record<string, unknown>>) {
     desktopAwareFetch.mockImplementation(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url === "/api/tasks/task-tabs/runs") {
-        return new Response(JSON.stringify({
-          runs: [
-            { id: "run-1", sessionId: "session-1", status: "failed", kind: "embedded_acp" },
-            { id: "run-2", sessionId: "session-2", status: "completed", kind: "embedded_acp" },
-          ],
-        }), {
+        return new Response(JSON.stringify({ runs }), {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
       }
       throw new Error(`Unexpected desktopAwareFetch: ${url}`);
     });
+  }
 
+  it("renders one text tab per laneSession in laneSessions order without lane icons or numeric badges", async () => {
+    mockRunLedger([
+      { id: "run-2", sessionId: "session-2", status: "completed", kind: "embedded_acp" },
+      { id: "run-1", sessionId: "session-1", status: "failed", kind: "embedded_acp" },
+      { id: "run-3", sessionId: "session-ledger-only", status: "running", kind: "embedded_acp" },
+    ]);
+
+    const onSelectSession = vi.fn();
     render(
       <KanbanCardActivityBar
-        task={createTask("task-tabs", "Compact run tabs", {
+        task={createTask("task-tabs", "Session tabs", {
           laneSessions: [
             {
               sessionId: "session-1",
@@ -1623,47 +1627,148 @@ describe("KanbanCardActivityBar", () => {
               sessionId: "session-2",
               stepName: "开发执行员",
               columnName: "Todo",
+              transport: "acp",
               status: "completed",
               startedAt: "2025-01-01T00:10:00.000Z",
             },
           ],
           triggerSessionId: "session-2",
         })}
-        sessions={[
-          {
-            sessionId: "session-1",
-            name: "Backlog 梳理员",
-            workspaceId: "workspace-1",
-            cwd: "/tmp/repo",
-            provider: "codex",
-            createdAt: "2025-01-01T00:00:00.000Z",
-          },
-          {
-            sessionId: "session-2",
-            name: "开发执行员",
-            workspaceId: "workspace-1",
-            cwd: "/tmp/repo",
-            provider: "codex",
-            createdAt: "2025-01-01T00:10:00.000Z",
-          },
-        ]}
         currentSessionId="session-2"
+        onSelectSession={onSelectSession}
+      />,
+    );
+
+    const tablist = await screen.findByRole("tablist");
+    const tabs = within(tablist).getAllByRole("tab");
+
+    // Tab count and order come from task.laneSessions only; the ledger-only run is not appended
+    // and the newest-first run ledger order does not reorder the tabs.
+    expect(tabs).toHaveLength(2);
+    expect(tabs[0]?.textContent).toBe("Backlog · Backlog 梳理员");
+    expect(tabs[1]?.textContent).toBe("Todo · 开发执行员");
+    expect(within(tablist).queryByRole("tab", { name: /session-ledger-only/ })).toBeNull();
+
+    // No lane icon labels, numeric badges, or Run N text in the first row.
+    expect(screen.queryByLabelText("Backlog")).toBeNull();
+    expect(within(tablist).queryByText("1")).toBeNull();
+    expect(within(tablist).queryByText("2")).toBeNull();
+    expect(within(tablist).queryByText(/Run \d+/)).toBeNull();
+
+    // Standard tab semantics; the selected tab matches currentSessionId.
+    expect(tabs[0]?.getAttribute("aria-selected")).toBe("false");
+    expect(tabs[1]?.getAttribute("aria-selected")).toBe("true");
+    expect(tabs[0]?.getAttribute("tabindex")).toBe("-1");
+    expect(tabs[1]?.getAttribute("tabindex")).toBe("0");
+    expect(tabs[0]?.getAttribute("aria-controls")).toBe("kanban-session-tabpanel-task-tabs");
+    expect(tabs[1]?.getAttribute("aria-controls")).toBe("kanban-session-tabpanel-task-tabs");
+    expect(tabs[0]?.getAttribute("aria-pressed")).toBeNull();
+
+    // Tooltip/aria-label carry the full context while the visible label stays laneName · stepName.
+    expect(tabs[0]?.getAttribute("title")).toBe("Backlog · Backlog 梳理员 · session-1");
+    expect(tabs[1]?.getAttribute("aria-label")).toBe("Todo · 开发执行员 · session-2");
+
+    fireEvent.click(tabs[0]!);
+    expect(onSelectSession).toHaveBeenCalledWith("session-1");
+
+    // Second row still shows the five original labels for the selected session.
+    const detailRow = document.getElementById("kanban-session-tabpanel-task-tabs");
+    expect(detailRow).toBeTruthy();
+    await waitFor(() => {
+      expect(detailRow?.textContent).toContain("Completed");
+    });
+    expect(detailRow?.textContent).toContain("Todo");
+    expect(detailRow?.textContent).toContain("acp");
+    expect(detailRow?.textContent).toContain("开发执行员");
+    expect(detailRow?.textContent).toContain("completed");
+  });
+
+  it("keeps multiple steps of the same lane and repeated runs of the same step as separate tabs", async () => {
+    mockRunLedger([]);
+
+    render(
+      <KanbanCardActivityBar
+        task={createTask("task-tabs-multi", "Session tabs multi", {
+          laneSessions: [
+            {
+              sessionId: "session-a",
+              stepName: "Dev Crafter",
+              columnName: "Dev",
+              status: "completed",
+              startedAt: "2025-01-01T00:00:00.000Z",
+            },
+            {
+              sessionId: "session-b",
+              stepName: "Dev Reviewer",
+              columnName: "Dev",
+              status: "completed",
+              startedAt: "2025-01-01T00:05:00.000Z",
+            },
+            {
+              sessionId: "session-c",
+              stepName: "Dev Crafter",
+              columnName: "Dev",
+              status: "running",
+              startedAt: "2025-01-01T00:10:00.000Z",
+            },
+          ],
+        })}
         onSelectSession={vi.fn()}
       />,
     );
 
-    await waitFor(() => {
-      expect(screen.getByTitle("Backlog 梳理员 · Backlog · Run 1")).toBeTruthy();
-      expect(screen.getByTitle("开发执行员 · Todo · Run 2")).toBeTruthy();
-    });
+    const tablist = await screen.findByRole("tablist");
+    const tabs = within(tablist).getAllByRole("tab");
+    expect(tabs).toHaveLength(3);
+    expect(tabs.map((tab) => tab.textContent)).toEqual([
+      "Dev · Dev Crafter",
+      "Dev · Dev Reviewer",
+      "Dev · Dev Crafter",
+    ]);
 
-    expect(screen.queryByText("BAC 梳理")).toBeNull();
-    expect(screen.queryByText("Backlog 梳理员")).toBeNull();
-    expect(screen.getByTitle("Backlog 梳理员 · Backlog · Run 1").getAttribute("title")).toBe(
-      "Backlog 梳理员 · Backlog · Run 1",
+    // Without a matching currentSessionId, the last laneSession is selected by default.
+    expect(tabs[2]?.getAttribute("aria-selected")).toBe("true");
+    expect(tabs[0]?.getAttribute("aria-selected")).toBe("false");
+  });
+
+  it("falls back to columnId and a neutral label when columnName or stepName are missing", async () => {
+    mockRunLedger([]);
+
+    render(
+      <KanbanCardActivityBar
+        task={createTask("task-tabs-fallback", "Session tabs fallback", {
+          laneSessions: [
+            {
+              sessionId: "session-fallback",
+              columnId: "dev",
+              status: "running",
+              startedAt: "2025-01-01T00:00:00.000Z",
+            },
+          ],
+        })}
+        onSelectSession={vi.fn()}
+      />,
     );
-    expect(screen.getByLabelText("Backlog")).toBeTruthy();
-    expect(screen.getByTitle("Backlog 梳理员 · Backlog · Run 1").parentElement?.className).toContain("flex-wrap");
+
+    const tab = await screen.findByRole("tab");
+    expect(tab.textContent).toBe("dev · ACP Session");
+    expect(tab.getAttribute("title")).toBe("dev · ACP Session · session-fallback");
+  });
+
+  it("shows the existing empty state when laneSessions is empty", async () => {
+    mockRunLedger([]);
+
+    render(
+      <KanbanCardActivityBar
+        task={createTask("task-tabs-empty", "Session tabs empty", {
+          triggerSessionId: "session-trigger-only",
+        })}
+        onSelectSession={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText("No automation runs yet")).toBeTruthy();
+    expect(screen.queryByRole("tablist")).toBeNull();
   });
 });
 
