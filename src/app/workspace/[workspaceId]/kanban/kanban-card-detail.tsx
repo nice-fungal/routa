@@ -26,11 +26,10 @@ import {
   type KanbanSpecialistOption as SpecialistOption,
 } from "./kanban-card-session-utils";
 export { KanbanCardActivityBar } from "./kanban-card-activity";
-import { KanbanCardArtifacts } from "./kanban-card-artifacts";
 import { KanbanCardProviderOverrideDropdown } from "./kanban-card-provider-override-dropdown";
 // Legacy imports - removed, functionality replaced by KanbanTaskGitWorkflowPanel
 // import { TaskFileDiffPreview, TaskCommitDiffPreview, CommitRow } from "./kanban-diff-preview";
-import { StoryReadinessPanel, EvidenceBundlePanel, JitContextPanel, ReviewFeedbackPanel } from "./kanban-detail-panels";
+import { StoryReadinessPanel, JitContextPanel, ReviewFeedbackPanel } from "./kanban-detail-panels";
 import { getKanbanSessionCopy } from "./i18n/kanban-session-copy";
 import {
   findSpecialistById,
@@ -72,7 +71,7 @@ export interface KanbanCardDetailProps {
 }
 
 const ROLE_OPTIONS = ["CRAFTER", "ROUTA", "GATE", "DEVELOPER"];
-type KanbanDetailTabId = "overview" | "execution" | "jitContext" | "changes" | "evidence" | "runs";
+type KanbanDetailTabId = "overview" | "execution" | "jitContext" | "changes" | "runs";
 
 const persistedKanbanDetailTabs = new Map<string, KanbanDetailTabId>();
 
@@ -298,10 +297,6 @@ export function KanbanCardDetail({
     () => boardColumns?.find((column) => column.id === (task.columnId ?? "backlog")),
     [boardColumns, task.columnId],
   );
-  const nextTransitionArtifacts = useMemo(
-    () => resolveKanbanTransitionArtifacts(boardColumns ?? [], task.columnId),
-    [boardColumns, task.columnId],
-  );
   const orderedSessionIds = useMemo(() => getOrderedSessionIds(task), [task]);
   const activeRunSessionId = task.triggerSessionId
     ?? (orderedSessionIds.length > 0 ? orderedSessionIds[orderedSessionIds.length - 1] : undefined);
@@ -330,7 +325,6 @@ export function KanbanCardDetail({
     { id: "execution" as const, label: t.kanbanDetail.execution },
     { id: "jitContext" as const, label: t.kanbanDetail.jitContext },
     { id: "changes" as const, label: t.kanbanDetail.changes },
-    { id: "evidence" as const, label: t.kanbanDetail.evidenceBundle },
     { id: "runs" as const, label: t.kanbanDetail.runs },
   ];
 
@@ -709,25 +703,6 @@ export function KanbanCardDetail({
                 onSelectSession={onSelectSession}
               />
             </DetailSection>
-          )}
-
-          {activeTab === "evidence" && (
-            <>
-              <DetailSection
-                title={t.kanbanDetail.evidenceBundle}
-                description={compactMode ? undefined : t.kanbanDetail.evidenceBundleHint}
-                compact={compactMode}
-              >
-                <EvidenceBundlePanel task={task} compact={compactMode} />
-              </DetailSection>
-
-              <KanbanCardArtifacts
-                taskId={task.id}
-                compact={compactMode}
-                requiredArtifacts={nextTransitionArtifacts.nextRequiredArtifacts}
-                refreshSignal={refreshSignal}
-              />
-            </>
           )}
 
           {activeTab === "execution" && (

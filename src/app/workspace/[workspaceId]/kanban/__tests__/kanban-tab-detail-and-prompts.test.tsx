@@ -1385,7 +1385,7 @@ describe("KanbanCardDetail repository health", () => {
     });
   });
 
-  it("keeps evidence summary focused on delivery readiness instead of run history", () => {
+  it("keeps evidence summary out of the task detail tabs", () => {
     render(
       <KanbanCardDetail
         task={{
@@ -1456,10 +1456,9 @@ describe("KanbanCardDetail repository health", () => {
     expect(screen.queryByRole("tab", { name: "Story Readiness" })).toBeNull();
     expect(screen.getByRole("tab", { name: "Overview" })).toBeTruthy();
     expect(screen.getAllByText("Blocked for Dev").length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole("tab", { name: "Evidence Bundle" }));
-    expect(screen.getByRole("tab", { name: "Evidence Bundle" })).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: "Evidence Bundle" })).toBeNull();
+    expect(screen.getByText("Evidence Bundle")).toBeTruthy();
     expect(screen.getAllByText("Evidence incomplete").length).toBeGreaterThan(0);
-    expect(screen.getByText(/test_results/i)).toBeTruthy();
     expect(screen.queryByText("Latest Run")).toBeNull();
   });
 

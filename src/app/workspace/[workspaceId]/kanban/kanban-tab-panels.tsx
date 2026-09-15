@@ -10,7 +10,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { useMemo, useState, type Dispatch, type SetStateAction, type ReactNode, type RefObject } from "react";
+import { useMemo, useState, type Dispatch, type SetStateAction, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "@/i18n";
 import type { AcpProviderInfo, AcpTaskAdaptiveHarnessOptions } from "@/client/acp-client";
@@ -19,8 +19,11 @@ import type { UseAcpActions, UseAcpState } from "@/client/hooks/use-acp";
 import { ChatPanel } from "@/client/components/chat-panel";
 import type { RepoSelection } from "@/client/components/repo-picker";
 import { resolveEffectiveTaskAutomation } from "@/core/kanban/effective-task-automation";
+import { resolveKanbanTransitionArtifacts } from "@/core/kanban/transition-artifacts";
 import { KanbanCard, KanbanCardOverlay } from "./kanban-card";
 import { KanbanCardActivityBar, KanbanCardDetail } from "./kanban-card-detail";
+import { KanbanCardArtifacts } from "./kanban-card-artifacts";
+import { EvidenceBundlePanel } from "./kanban-detail-panels";
 import type { KanbanTaskAgentCopy } from "./i18n/kanban-task-agent";
 import { KanbanCreateModal, type TaskDraft } from "../kanban-create-modal";
 import { KanbanCardActivityPanel, KanbanEmptySessionPane } from "./kanban-card-activity";
@@ -716,9 +719,6 @@ export function KanbanTaskDetailOverlay({
   acp,
   boardAutoProviderId,
   onBoardProviderChange,
-  detailSplitContainerRef,
-  detailSplitRatio,
-  setIsDraggingDetailSplit,
   refreshSignal,
   availableProviders,
   specialists,
@@ -747,9 +747,6 @@ export function KanbanTaskDetailOverlay({
   acp?: UseAcpState & UseAcpActions;
   boardAutoProviderId?: string;
   onBoardProviderChange: (providerId: string) => void;
-  detailSplitContainerRef: RefObject<HTMLDivElement | null>;
-  detailSplitRatio: number;
-  setIsDraggingDetailSplit: Dispatch<SetStateAction<boolean>>;
   refreshSignal?: number;
   availableProviders: AcpProviderInfo[];
   specialists: SpecialistOption[];
@@ -783,7 +780,12 @@ export function KanbanTaskDetailOverlay({
   const selectedLaneSession = getTaskLaneSession(activeTask, activeSessionId);
   const isA2ASessionPane = Boolean(activeTask && isA2ATaskSession(activeTask, activeSessionId));
   const canShowSessionPane = Boolean(showEmptySessionPane || isA2ASessionPane || (activeSessionId && acp));
-  const [hiddenSessionPaneTaskId, setHiddenSessionPaneTaskId] = useState<string | null>(null);
+  const nextTransitionArtifacts = useMemo(
+    () => activeTask
+      ? resolveKanbanTransitionArtifacts(board?.columns ?? [], activeTask.columnId)
+      : null,
+    [activeTask, board?.columns],
+  );
   const [sessionRecoveryInputPrefill, setSessionRecoveryInputPrefill] = useState<string | null>(null);
   const isSessionPaneVisible = activeTaskId ? hiddenSessionPaneTaskId !== activeTaskId : true;
   const hasSessionPane = canShowSessionPane && isSessionPaneVisible;
@@ -862,16 +864,19 @@ export function KanbanTaskDetailOverlay({
           isTaskDetailFullscreen ? "h-screen max-w-none border-0" : "h-[88vh] max-w-7xl"
         }`}
       >
-        <div ref={detailSplitContainerRef} className="flex h-full">
-          {activeTaskId && (() => {
-            const task = activeTask;
-            if (!task) return null;
-            const sessionInfo = activeSessionId ? sessionMap.get(activeSessionId) ?? null : null;
-            return (
-              <div
-                className={`${hasSessionPane ? "shrink-0" : "flex-1"} h-full min-w-0 border-r border-slate-200/80 dark:border-[#202433]`}
-                style={hasSessionPane ? { width: `${detailSplitRatio * 100}%` } : undefined}
-              >
+        <div
+          className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)] grid-cols-[minmax(0,4fr)_minmax(0,4fr)_minmax(0,2fr)]"
+          data-testid="kanban-detail-grid"
+        >
+          <div
+            className="h-full min-h-0 min-w-0 overflow-hidden border-r border-slate-200/80 dark:border-[#202433]"
+            data-testid="kanban-detail-task-pane"
+          >
+            {activeTaskId && (() => {
+              const task = activeTask;
+              if (!task) return null;
+              const sessionInfo = activeSessionId ? sessionMap.get(activeSessionId) ?? null : null;
+              return (
                 <KanbanCardDetail
                   key={task.id}
                   task={task}
@@ -885,7 +890,7 @@ export function KanbanTaskDetailOverlay({
                   worktreeCache={worktreeCache}
                   sessionInfo={sessionInfo}
                   sessions={combinedSessions}
-                  fullWidth={!hasSessionPane}
+                  fullWidth={false}
                   selectedProvider={resolveKanbanBoardAutoProviderId(board, boardAutoProviderId) ?? null}
                   onPatchTask={patchTask}
                   onRetryTrigger={retryTaskTrigger}
@@ -960,48 +965,39 @@ export function KanbanTaskDetailOverlay({
                   isSessionPaneVisible={hasSessionPane}
                   onShowSessionPane={() => setHiddenSessionPaneTaskId(null)}
                 />
-              </div>
-            );
-          })()}
-          {activeTaskId && hasSessionPane && (
-            <div
-              className="hidden h-full w-3 shrink-0 cursor-col-resize items-center justify-center bg-transparent hover:bg-amber-50/80 dark:hover:bg-amber-900/10 md:flex"
-              onMouseDown={() => setIsDraggingDetailSplit(true)}
-              data-testid="kanban-detail-split-handle"
-            >
-              <div className="h-12 w-1 rounded-full bg-slate-300 transition-colors hover:bg-amber-400 dark:bg-slate-700 dark:hover:bg-amber-500" />
-            </div>
-          )}
-          {hasSessionPane ? (() => {
-            const taskCodebaseIds = activeTask?.codebaseIds && activeTask.codebaseIds.length > 0
-              ? activeTask.codebaseIds
-              : allCodebaseIds;
-            const primaryCodebase = taskCodebaseIds.length > 0
-              ? codebases.find((codebase) => codebase.id === taskCodebaseIds[0])
-              : null;
-            const activeSessionInfo = activeSessionId
-              ? sessionMap.get(activeSessionId) ?? null
-              : null;
-            const activeWorktree = activeTask?.worktreeId
-              ? worktreeCache[activeTask.worktreeId] ?? null
-              : null;
-            const repoSelection = primaryCodebase
-              ? {
-                  path: activeSessionInfo?.cwd ?? activeWorktree?.worktreePath ?? primaryCodebase.repoPath,
-                  branch: activeSessionInfo?.branch ?? activeWorktree?.branch ?? primaryCodebase.branch ?? "",
-                  name: primaryCodebase.label ?? primaryCodebase.repoPath.split("/").pop() ?? "",
-                }
-              : null;
-            const taskAgentRole = activeSessionInfo?.role
-              ?? selectedLaneSession?.role
-              ?? undefined;
+              );
+            })()}
+          </div>
+          <div
+            className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-r border-slate-200/80 dark:border-[#202433]"
+            data-testid="kanban-detail-session-pane"
+          >
+            {hasSessionPane ? (() => {
+              const taskCodebaseIds = activeTask?.codebaseIds && activeTask.codebaseIds.length > 0
+                ? activeTask.codebaseIds
+                : allCodebaseIds;
+              const primaryCodebase = taskCodebaseIds.length > 0
+                ? codebases.find((codebase) => codebase.id === taskCodebaseIds[0])
+                : null;
+              const activeSessionInfo = activeSessionId
+                ? sessionMap.get(activeSessionId) ?? null
+                : null;
+              const activeWorktree = activeTask?.worktreeId
+                ? worktreeCache[activeTask.worktreeId] ?? null
+                : null;
+              const repoSelection = primaryCodebase
+                ? {
+                    path: activeSessionInfo?.cwd ?? activeWorktree?.worktreePath ?? primaryCodebase.repoPath,
+                    branch: activeSessionInfo?.branch ?? activeWorktree?.branch ?? primaryCodebase.branch ?? "",
+                    name: primaryCodebase.label ?? primaryCodebase.repoPath.split("/").pop() ?? "",
+                  }
+                : null;
+              const taskAgentRole = activeSessionInfo?.role
+                ?? selectedLaneSession?.role
+                ?? undefined;
 
-            if (showEmptySessionPane && activeTask) {
-              return (
-                <div
-                  className="flex h-full min-w-0 flex-1 flex-col overflow-hidden"
-                  style={activeTaskId ? { width: `${(1 - detailSplitRatio) * 100}%` } : undefined}
-                >
+              if (showEmptySessionPane && activeTask) {
+                return (
                   <KanbanEmptySessionPane
                     task={activeTask}
                     boardColumns={board?.columns ?? []}
@@ -1011,63 +1007,81 @@ export function KanbanTaskDetailOverlay({
                     autoProviderId={resolveKanbanBoardAutoProviderId(board, boardAutoProviderId)}
                     onCloseSession={() => setHiddenSessionPaneTaskId(activeTask?.id ?? null)}
                   />
-                </div>
-              );
-            }
+                );
+              }
 
-            return (
-              <div
-                className="flex h-full min-w-0 flex-1 flex-col overflow-hidden"
-                style={activeTaskId ? { width: `${(1 - detailSplitRatio) * 100}%` } : undefined}
-              >
-                {activeTask && !isA2ASessionPane && (
-                  <div className="shrink-0 border-b border-slate-200/80 p-2 dark:border-[#202433]">
-                    <KanbanCardActivityBar
+              return (
+                <>
+                  {activeTask && !isA2ASessionPane && (
+                    <div className="shrink-0 border-b border-slate-200/80 p-2 dark:border-[#202433]">
+                      <KanbanCardActivityBar
+                        task={activeTask}
+                        sessions={combinedSessions}
+                        specialistLanguage={specialistLanguage}
+                        currentSessionId={activeSessionId ?? undefined}
+                        onSelectSession={(sessionId) => selectTaskSession(activeTask, sessionId)}
+                      />
+                    </div>
+                  )}
+                  {isA2ASessionPane && activeTask ? (
+                    <A2ASessionPane
                       task={activeTask}
+                      laneSession={selectedLaneSession}
                       sessions={combinedSessions}
+                      specialists={specialists}
                       specialistLanguage={specialistLanguage}
+                      refreshSignal={refreshSignal}
                       currentSessionId={activeSessionId ?? undefined}
                       onSelectSession={(sessionId) => selectTaskSession(activeTask, sessionId)}
                       onCloseSession={() => setHiddenSessionPaneTaskId(activeTask.id)}
                     />
-                  </div>
-                )}
-                {isA2ASessionPane && activeTask ? (
-                  <A2ASessionPane
-                    task={activeTask}
-                    laneSession={selectedLaneSession}
-                    sessions={combinedSessions}
-                    specialists={specialists}
-                    specialistLanguage={specialistLanguage}
-                    refreshSignal={refreshSignal}
-                    currentSessionId={activeSessionId ?? undefined}
-                    onSelectSession={(sessionId) => selectTaskSession(activeTask, sessionId)}
-                    onCloseSession={() => setHiddenSessionPaneTaskId(activeTask.id)}
-                  />
-                ) : acp && (
-                  <div className="min-h-0 flex-1">
-                    <ChatPanel
-                      acp={acp}
-                      activeSessionId={activeSessionId}
-                      onEnsureSession={async () => activeSessionId}
-                      onSelectSession={async (sessionId) => {
-                        setActiveSessionId(sessionId);
-                        acp.selectSession(sessionId);
-                      }}
-                      repoSelection={repoSelection}
-                      onRepoChange={() => {}}
-                      codebases={codebases}
-                      activeWorkspaceId={workspaceId}
-                      agentRole={taskAgentRole}
-                      inputPrefill={sessionRecoveryInputPrefill}
-                      onInputPrefillConsumed={() => setSessionRecoveryInputPrefill(null)}
-                      onResumeActiveSession={recoverActiveAcpSession}
                     />
-                  </div>
-                )}
+                  ) : acp && (
+                    <div className="min-h-0 flex-1">
+                      <ChatPanel
+                        acp={acp}
+                        activeSessionId={activeSessionId}
+                        onEnsureSession={async () => activeSessionId}
+                        onSelectSession={async (sessionId) => {
+                          setActiveSessionId(sessionId);
+                          acp.selectSession(sessionId);
+                        }}
+                        repoSelection={repoSelection}
+                        onRepoChange={() => {}}
+                        codebases={codebases}
+                        activeWorkspaceId={workspaceId}
+                        agentRole={taskAgentRole}
+                        inputPrefill={sessionRecoveryInputPrefill}
+                        onInputPrefillConsumed={() => setSessionRecoveryInputPrefill(null)}
+                        onResumeActiveSession={recoverActiveAcpSession}
+                      />
+                    </div>
+                  )}
+                </>
+              );
+            })() : null}
+          </div>
+          <aside
+            className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
+            data-testid="kanban-detail-evidence-pane"
+          >
+            {activeTask ? (
+              <div className="min-h-0 flex-1 overflow-y-auto p-3">
+                <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+                  {t.kanbanDetail.evidenceBundle}
+                </div>
+                <div className="space-y-3">
+                  <EvidenceBundlePanel task={activeTask} compact />
+                  <KanbanCardArtifacts
+                    taskId={activeTask.id}
+                    compact
+                    requiredArtifacts={nextTransitionArtifacts?.nextRequiredArtifacts}
+                    refreshSignal={refreshSignal}
+                  />
+                </div>
               </div>
-            );
-          })() : null}
+            ) : null}
+          </aside>
         </div>
       </div>
     </div>
